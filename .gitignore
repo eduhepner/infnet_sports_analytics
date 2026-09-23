@@ -1,0 +1,25 @@
+# Ambiente virtual
+.venv/
+venv/
+env/
+
+# Caches do Python
+__pycache__/
+*.py[cod]
+
+# SEGREDOS — o repositório do Community Cloud é PÚBLICO por padrão.
+# Versione apenas o .example, com as chaves em branco.
+.streamlit/secrets.toml
+.env
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# --- WebScraping
+data/raw/
+
+old/
+img/
