@@ -20,3 +20,4 @@ Sports Analytics/
  - seaborn  
  - mplsoccer
  - statsbombpy
+ - plotly
