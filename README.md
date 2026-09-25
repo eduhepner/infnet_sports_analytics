@@ -8,6 +8,7 @@ Trabalho de **Sport Analytics** proposto pela disciplina.
 Sports Analytics/
 ├── app.py                          INTERFACE
 ├── src/
+│   │── visualizacoes.py            VISUALIZAÇÕES
 │   └── load.py                     PROCESSAMENTO E CARREGAMENTO
 └── requirements.txt · .gitignore · .streamlit/
 ```
@@ -16,5 +17,6 @@ Sports Analytics/
  - pandas
  - streamlit
  - matplotlib
+ - seaborn  
  - mplsoccer
  - statsbombpy

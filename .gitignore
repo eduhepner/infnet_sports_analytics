@@ -19,7 +19,7 @@ Thumbs.db
 .idea/
 
 # --- WebScraping
-data/raw/
+data/
 
 old/
 img/

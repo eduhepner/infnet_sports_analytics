@@ -1,13 +1,20 @@
-import matplotlib.pyplot as plt
 import pandas as pd
 import streamlit as st
-from matplotlib.colors import LinearSegmentedColormap
-from mplsoccer import Pitch, VerticalPitch
 from statsbombpy import sb
 
 
 def load_data():
     return sb.competitions()
+
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def load_eventos(match_id):
+    return sb.events(match_id=match_id)
+
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def load_lineup(match_id):
+    return sb.lineups(match_id=match_id)
 
 
 def filter_competitions(df, gender=None, international=None):
@@ -87,8 +94,8 @@ def create_table(df_matches, df_matches_filtered):
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def info_match(id):
-    eventos = sb.events(match_id=id)
-    lineups = sb.lineups(match_id=id)
+    eventos = load_eventos(id)
+    lineups = load_lineup(id)
 
     time1_nome = list(lineups.keys())[0]
     time1 = lineups[time1_nome]
@@ -112,7 +119,7 @@ def info_match(id):
                 if "Substitution - Off" in position["end_reason"]:
                     i.loc[indice, "saiu"] = "🔽"
 
-                elif "Substitution - On" in position["start_reason"]:
+                if "Substitution - On" in position["start_reason"]:
                     i.loc[indice, "entrou"] = "🔼"
 
             for card in linha["cards"]:
@@ -183,12 +190,8 @@ def info_match(id):
     reservas_time1 = get_reservas(time1, lineup1)
     reservas_time2 = get_reservas(time2, lineup2)
 
-    # titulares_time1 = build_team(titulares_time1)
-    # titulares_time2 = build_team(titulares_time2)
-    # reservas_time1 = build_team(reservas_time1)
-    # reservas_time2 = build_team(reservas_time2)
-
     return (
+        eventos,
         tatica_t1,
         tatica_t2,
         gols,
@@ -264,6 +267,7 @@ def get_reservas(time, lineup):
                 linha["n_gols"],
             ]
         )
+
     display_reservas = pd.DataFrame(
         display_reservas,
         columns=[
@@ -280,188 +284,3 @@ def get_reservas(time, lineup):
         ],
     )
     return display_reservas
-
-
-def build_team(time, tatica=None):
-    if tatica is not None:
-        tatica = "-".join(str(tatica))
-        st.markdown(
-            f"""
-            <div>
-                <span style="display: inline-block; width: 30px;"></span>
-                <span style="font-size: 1.1em; font-weight: bold;">
-                    {tatica}
-                </span>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-    for i, linha in time.iterrows():
-        sub = (
-            linha["entrou"]
-            if pd.notna(linha["entrou"])
-            else linha["saiu"] if pd.notna(linha["saiu"]) else ""
-        )
-        nome_jogador = "   ".join(
-            str(x)
-            for x in [
-                linha["nome"],
-                linha["cartao"],
-                linha["gols"],
-            ]
-            if pd.notna(x)
-        )
-        posicao = linha["posicao"] if pd.notna(linha["posicao"]) else ""
-        st.markdown(
-            f"""
-            <div>
-                <span style="display: inline-block; width: 30px;">{sub}</span>
-                <span>{nome_jogador}</span>
-                <div style="font-size: 0.8em; color: gray;">
-                    <span style="display: inline-block; width: 30px;"></span>
-                    {linha['numero']}    {posicao}
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-
-def build_tab(
-    tab, time_nome, titulares, reservas, tatica, gols, chutes, passes, escanteios
-):
-    with tab:
-        c_chutes, c_passes, c_escanteios = st.columns(3)
-
-        chutes_time = chutes.loc[chutes["team"] == time_nome].shape[0]
-        chutes_outro = chutes.loc[chutes["team"] != time_nome].shape[0]
-
-        passes_time = passes.loc[passes["team"] == time_nome].shape[0]
-        passes_outro = passes.loc[passes["team"] != time_nome].shape[0]
-
-        escanteios_time = escanteios.loc[escanteios["team"] == time_nome].shape[0]
-        escanteios_outro = escanteios.loc[escanteios["team"] != time_nome].shape[0]
-
-        c_chutes.metric("Chutes", chutes_time, delta=chutes_time - chutes_outro)
-        c_passes.metric("Passes", passes_time, delta=passes_time - passes_outro)
-        c_escanteios.metric(
-            "Escanteios", escanteios_time, delta=escanteios_time - escanteios_outro
-        )
-
-        c1_tab, c2_tab = st.columns(2)
-
-        with c1_tab:
-            build_team(titulares, tatica)
-            st.divider()
-            build_team(reservas)
-
-        with c2_tab:
-            tab3, tab4 = st.tabs(["Campo de jogo", "Mapa de calor"])
-
-            with tab3:
-                fig = build_campo(titulares, tatica)
-                st.pyplot(fig)
-
-            with tab4:
-                fig = build_heatmap(passes, time_nome)
-                st.pyplot(fig)
-        show_events(time_nome, gols, chutes, passes, escanteios)
-
-
-def show_events(time_nome, gols, chutes, passes, escanteios):
-    with st.expander("Eventos do time"):
-        selected_stat = st.selectbox(
-            "Estatística",
-            options=["Gols", "Chutes", "Passes", "Escanteios"],
-            index=None,
-            key=f"select_stat_{time_nome}",
-            label_visibility="collapsed",
-        )
-
-        if selected_stat is not None:
-            if selected_stat == "Gols":
-                stat = gols[gols["team"] == time_nome]
-            elif selected_stat == "Chutes":
-                stat = chutes[chutes["team"] == time_nome]
-            elif selected_stat == "Passes":
-                stat = passes[passes["team"] == time_nome]
-            elif selected_stat == "Escanteios":
-                stat = escanteios[escanteios["team"] == time_nome]
-            st.dataframe(stat)
-
-
-def build_campo(titulares, tatica):
-    pitch = VerticalPitch(
-        pitch_color="grass",
-        line_color="white",
-        stripe=True,
-    )
-
-    fig, ax = pitch.draw(figsize=(4, 8))
-
-    positions = titulares["id_posicao"]
-    numeros = titulares["numero"]
-
-    pitch.formation(
-        str(tatica),
-        positions=positions,
-        kind="scatter",
-        ax=ax,
-        s=500,
-    )
-
-    pitch.formation(
-        str(tatica),
-        positions=positions,
-        kind="text",
-        text=numeros,
-        ax=ax,
-        va="center",
-        ha="center",
-        fontsize=8,
-        fontweight="bold",
-        color="white",
-    )
-
-    return fig
-
-
-def build_heatmap(eventos, time_nome):
-    passes_time = eventos[
-        (eventos["team"] == time_nome) & (eventos["period"] <= 4)
-    ].copy()
-
-    passes_time[["x", "y"]] = pd.DataFrame(
-        passes_time["location"].tolist(),
-        index=passes_time.index,
-    )
-
-    pitch = VerticalPitch(pitch_color="grass", line_color="white", stripe=True)
-
-    fig, ax = pitch.draw(
-        figsize=(4, 8),
-    )
-
-    cmap = LinearSegmentedColormap.from_list(
-        "heatmap_fade",
-        [
-            (1, 1, 1, 0),  # transparente
-            (1, 1, 0, 0.3),  # amarelo
-            (1, 0.5, 0, 0.7),  # laranja
-            (1, 0, 0, 1),  # vermelho
-        ],
-    )
-
-    pitch.kdeplot(
-        passes_time["x"],
-        passes_time["y"],
-        ax=ax,
-        fill=True,
-        levels=100,
-        thresh=0.02,
-        cmap=cmap,
-        zorder=0,
-    )
-
-    return fig

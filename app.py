@@ -4,8 +4,6 @@ from mplsoccer import Pitch, VerticalPitch
 from statsbombpy import sb
 
 from src.loader import (
-    build_tab,
-    build_team,
     filter_competitions,
     info_competition,
     info_match,
@@ -13,6 +11,7 @@ from src.loader import (
     load_data,
     make_match,
 )
+from src.visualizacoes import build_tab
 
 st.set_page_config(
     page_title="AT - Desenvolvimento Front-End com Python (com Streamlit) [26E3_1]",
@@ -176,6 +175,7 @@ if (
             id_match = id_match.item()
             with st.spinner("Carregando partida..."):
                 (
+                    eventos,
                     tatica_t1,
                     tatica_t2,
                     gols,
@@ -209,27 +209,35 @@ if (
             # tab time1
             build_tab(
                 tab1,
+                eventos,
                 time1_nome,
                 titulares_time1,
                 reservas_time1,
+                titulares_time2,
+                reservas_time2,
                 tatica_t1,
                 gols,
                 chutes,
                 passes,
                 escanteios,
+                id_match,
             )
 
             # tab time2
             build_tab(
                 tab2,
+                eventos,
                 time2_nome,
                 titulares_time2,
                 reservas_time2,
+                titulares_time1,
+                reservas_time1,
                 tatica_t2,
                 gols,
                 chutes,
                 passes,
                 escanteios,
+                id_match,
             )
 
 
