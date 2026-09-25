@@ -1,6 +1,7 @@
 import matplotlib.patheffects as path_effects
 import matplotlib.pyplot as plt
 import pandas as pd
+import plotly.express as px
 import seaborn as sns
 import streamlit as st
 from matplotlib.colors import LinearSegmentedColormap
@@ -414,7 +415,7 @@ def build_tab(
         st.divider()
         show_events(time_nome, eventos, titulares, reservas)
         st.divider()
-        show_analises(time_nome, passes, gols, chutes, titulares, reservas)
+        show_analises(time_nome, passes, chutes, titulares, reservas)
 
 
 def show_events(time_nome, eventos, titulares, reservas):
@@ -651,53 +652,68 @@ def show_gol(titulares_time, reservas_time, titulares_adv, reservas_adv, gols, g
     return fig
 
 
-def show_analises(time_nome, passes, gols, chutes, titulares, reservas):
+def show_analises(time_nome, passes, chutes, titulares, reservas):
     with st.expander("Análises"):
-        show_relacao_chutes_gols(time_nome, passes, gols, chutes, titulares, reservas)
-        # show_analise2(time_nome, passes, gols, chutes, titulares, reservas):
 
+        chutes = chutes.loc[chutes["team"] == time_nome].copy()
+        passes = passes.loc[passes["team"] == time_nome].copy()
 
-def show_relacao_chutes_gols(time_nome, passes, gols, chutes, titulares, reservas):
-    estatisticas = pd.DataFrame(
-        {
-            "nome": titulares["nome"].tolist() + reservas["nome"].tolist(),
-            "player_id": titulares["player_id"].tolist()
-            + reservas["player_id"].tolist(),
-        }
-    )
+        for tabela in [chutes, passes]:
+            for indice, linha in tabela.iterrows():
+                for lista in [titulares, reservas]:
+                    for i, jogador in lista.iterrows():
+                        if linha["player_id"] == jogador["player_id"]:
+                            tabela.loc[indice, "player"] = jogador["nome"]
 
-    estatisticas["chutes"] = 0
-    estatisticas["gols"] = 0
+        g1, g2 = st.columns(2)
+        g1.markdown("**Resultado dos chutes**")
+        g1.bar_chart(chutes.groupby("shot_outcome").size())
 
-    for indice, jogador in estatisticas.iterrows():
-        player_id = jogador["player_id"]
+        g2.markdown("**Chute por jogador**")
+        g2.bar_chart(chutes.groupby("player").size())
 
-        estatisticas.loc[indice, "chutes"] = len(
-            chutes[chutes["player_id"] == player_id]
+        g1, g2 = st.columns(2)
+        passes["pass_outcome"] = passes["pass_outcome"].fillna("Completed")
+        g1.markdown("**Resultado dos passes**")
+        g1.bar_chart(passes.groupby("pass_outcome").size())
+
+        g2.markdown("**Passe por jogador**")
+        g2.bar_chart(passes.groupby("player").size())
+
+        st.markdown("**Chutes ao longo do jogo**")
+        fig = px.scatter(
+            chutes,
+            x="timestamp",
+            y="player",
+            hover_name="player",
         )
+        st.plotly_chart(fig)
 
-        estatisticas.loc[indice, "gols"] = len(gols[gols["player_id"] == player_id])
+        stats = pd.DataFrame()
+        stats["player"] = pd.concat(
+            [
+                chutes["player"],
+                passes["player"],
+            ]
+        ).unique()
 
-    fig, ax = plt.subplots(figsize=(10, 6))
+        stats["chutes"] = 0
+        stats["passes"] = 0
 
-    sns.scatterplot(
-        data=estatisticas,
-        x="chutes",
-        y="gols",
-        s=100,
-        ax=ax,
-    )
+        for indice, jogador in stats.iterrows():
+            stats.loc[indice, "chutes"] = len(
+                chutes[chutes["player"] == jogador["player"]]
+            )
 
-    for i, jogador in estatisticas.iterrows():
-        ax.annotate(
-            jogador["nome"],
-            (jogador["chutes"], jogador["gols"]),
-            xytext=(5, 5),
-            textcoords="offset points",
+            stats.loc[indice, "passes"] = len(
+                passes[passes["player"] == jogador["player"]]
+            )
+
+        st.markdown("**Relação entre chutes e passes**")
+        fig = px.scatter(
+            stats,
+            x="passes",
+            y="chutes",
+            hover_name="player",
         )
-
-    ax.set_title(f"Relação entre chutes e gols — {time_nome}")
-    ax.set_xlabel("chutes")
-    ax.set_ylabel("Gols")
-
-    st.pyplot(fig)
+        st.plotly_chart(fig)
